@@ -14,6 +14,7 @@ namespace Anduril.WebServer
 {
     public static class ExtensionMethods
     {
+        //  if-then as lambda expressions   
         public static bool If<T>(this T v, Func<T, bool> predicate, Action<T> action)
         {
             bool ret = predicate(v);
@@ -26,7 +27,7 @@ namespace Anduril.WebServer
             return ret;
         }
 
-        // Type is...
+        // Type is...  类型判断
         public static bool Is<T>(this object obj, Action<T> action)
         {
             bool ret = obj is T;
@@ -41,8 +42,8 @@ namespace Anduril.WebServer
 
         // ---------- if-then-else as lambda expressions --------------
 
-        // If the test returns true, execute the action.
-        // Works with objects, not value types.
+        // If the test returns true, execute the action.  如果测试返回true，则执行操作
+        // Works with objects, not value types.  适用于对象，而不是值类型
         public static void IfTrue<T>(this T obj, Func<T, bool> test, Action<T> action)
         {
             if (test(obj))
@@ -52,7 +53,7 @@ namespace Anduril.WebServer
         }
 
         /// <summary>
-        /// Returns true if the object is null.
+        /// Returns true if the object is null. 如果对象为空，则返回true
         /// </summary>
         public static bool IfNull<T>(this T obj)
         {
@@ -60,7 +61,7 @@ namespace Anduril.WebServer
         }
 
         /// <summary>
-        /// If the object is null, performs the action and returns true.
+        /// If the object is null, performs the action and returns true. 如果对象为空，则执行操作并返回true
         /// </summary>
         public static bool IfNull<T>(this T obj, Action action)
         {
@@ -72,7 +73,7 @@ namespace Anduril.WebServer
         }
 
         /// <summary>
-        /// Returns true if the object is not null.
+        /// Returns true if the object is not null. 如果对象不为空，则返回true
         /// </summary>
         public static bool IfNotNull<T>(this T obj)
         {
@@ -80,7 +81,7 @@ namespace Anduril.WebServer
         }
 
         /// <summary>
-        /// Return the result of the func if 'T is not null, passing 'T to func.
+        /// Return the result of the func if 'T is not null, passing 'T to func. 如果“T”不为空，则返回func的结果，并将“T”传递给func
         /// </summary>
         public static R IfNotNullReturn<T, R>(this T obj, Func<T, R> func)
         {
@@ -95,7 +96,7 @@ namespace Anduril.WebServer
         }
 
         /// <summary>
-        /// Return the result of func if 'T is null.
+        /// Return the result of func if 'T is null. 如果“T”为空，则返回func的结果
         /// </summary>
         public static R ElseIfNullReturn<T, R>(this T obj, Func<R> func)
         {
@@ -110,7 +111,7 @@ namespace Anduril.WebServer
         }
 
         /// <summary>
-        /// If the object is not null, performs the action and returns true.
+        /// If the object is not null, performs the action and returns true. 如果对象不为空，则执行操作并返回true
         /// </summary>
         public static bool IfNotNull<T>(this T obj, Action<T> action)
         {
@@ -122,7 +123,7 @@ namespace Anduril.WebServer
         }
 
         /// <summary>
-        /// If the boolean is true, performs the specified action.
+        /// If the boolean is true, performs the specified action. 如果布尔值为true，则执行指定的操作
         /// </summary>
         public static bool Then(this bool b, Action f)
         {
@@ -132,7 +133,8 @@ namespace Anduril.WebServer
         }
 
         /// <summary>
-        /// If the boolean is false, performs the specified action and returns the complement of the original state.
+        /// If the boolean is false, performs the specified action and returns the complement of the original state. 
+        /// 如果布尔值为false，则执行指定的操作并返回原始状态的补码
         /// </summary>
         public static void Else(this bool b, Action f)
         {
@@ -142,7 +144,8 @@ namespace Anduril.WebServer
         // ---------- Dictionary --------------
 
         /// <summary>
-        /// Return the key for the dictionary value or throws an exception if more than one value matches.
+        /// Return the key for the dictionary value or throws an exception if more than one value matches.  
+        /// 返回字典值的键，如果有多个值匹配，则抛出异常
         /// </summary>
         public static TKey KeyFromValue<TKey, TValue>(this Dictionary<TKey, TValue> dict, TValue val)
         {
@@ -530,6 +533,7 @@ namespace Anduril.WebServer
             return StringHelpers.RightOf(src, c);
         }
 
+ 
         public static string RightOf(this String src, char c, int occurance)
         {
             string ret = src;

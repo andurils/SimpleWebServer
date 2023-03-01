@@ -1,4 +1,5 @@
 ﻿using System.Net;
+using System.Reflection;
 
 namespace Anduril.WebServer.ConsoleHost
 {
@@ -8,9 +9,19 @@ namespace Anduril.WebServer.ConsoleHost
         {
             //var prefixes = new string[] { "http://localhost:8090/" };
             //SimpleListenerExample(prefixes);
-
-            Server.Start();
+            string websitePath = GetWebsitePath();
+            Server.Start(websitePath);
             Console.ReadLine();
+        }
+
+        public static string GetWebsitePath()
+        {
+            // Path of our exe.
+            string websitePath = Assembly.GetExecutingAssembly().Location;
+            websitePath = websitePath.LeftOfRightmostOf("\\").LeftOfRightmostOf("\\").LeftOfRightmostOf("\\").LeftOfRightmostOf("\\") + "\\Website";
+            //websitePath = websitePath.LeftOfRightmostOf("\\")+ "\\Website";
+
+            return websitePath;
         }
 
         // https://www.codeproject.com/Articles/859108/Writing-a-Web-Server-from-Scratch
