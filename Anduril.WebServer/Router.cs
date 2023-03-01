@@ -21,14 +21,14 @@ namespace Anduril.WebServer
         {
             extFolderMap = new Dictionary<string, ExtensionInfo>()
                                 {
-                                  {"ico", new ExtensionInfo() {Loader=ImageLoader, ContentType="image/ico"}},
-                                  {"png", new ExtensionInfo() {Loader=ImageLoader, ContentType="image/png"}},
-                                  {"jpg", new ExtensionInfo() {Loader=ImageLoader, ContentType="image/jpg"}},
-                                  {"gif", new ExtensionInfo() {Loader=ImageLoader, ContentType="image/gif"}},
-                                  {"bmp", new ExtensionInfo() {Loader=ImageLoader, ContentType="image/bmp"}},
-                                  {"html", new ExtensionInfo() {Loader=PageLoader, ContentType="text/html"}},
-                                  {"css", new ExtensionInfo() {Loader=FileLoader, ContentType="text/css"}},
-                                  {"js", new ExtensionInfo() {Loader=FileLoader, ContentType="text/javascript"}},
+                                  {".ico", new ExtensionInfo() {Loader=ImageLoader, ContentType="image/ico"}},
+                                  {".png", new ExtensionInfo() {Loader=ImageLoader, ContentType="image/png"}},
+                                  {".jpg", new ExtensionInfo() {Loader=ImageLoader, ContentType="image/jpg"}},
+                                  {".gif", new ExtensionInfo() {Loader=ImageLoader, ContentType="image/gif"}},
+                                  {".bmp", new ExtensionInfo() {Loader=ImageLoader, ContentType="image/bmp"}},
+                                  {".html", new ExtensionInfo() {Loader=PageLoader, ContentType="text/html"}},
+                                  {".css", new ExtensionInfo() {Loader=FileLoader, ContentType="text/css"}},
+                                  {".js", new ExtensionInfo() {Loader=FileLoader, ContentType="text/javascript"}},
                                   {"", new ExtensionInfo() {Loader=PageLoader, ContentType="text/html"}},
                                 };
         }
@@ -95,14 +95,16 @@ namespace Anduril.WebServer
         //  Route a request to the appropriate handler.  将请求路由到适当的处理程序。
         public ResponsePacket Route(string verb, string path, Dictionary<string, object> kvParams)
         {
-            string ext = path.RightOf('.'); // Get the extension.  获取扩展名
+            // 获取扩展名
+            string ext = Path.GetExtension(path); //path.RightOfRightmostOf('.'); 
             ExtensionInfo extInfo;
             ResponsePacket ret = null;
 
             if (extFolderMap.TryGetValue(ext, out extInfo))
             {
                 // Strip off leading '/' and reformat as with windows path separator.    去掉前导“/”并重新格式化为Windows路径分隔符。 
-                string fullPath = Path.Combine(WebsitePath, path);
+                string wpath = path.Substring(1).Replace('/', '\\');
+                string fullPath = Path.Combine(WebsitePath, wpath);
                 ret = extInfo.Loader(fullPath, ext, extInfo); // Call the appropriate loader.  调用适当的加载程序。
             }
 

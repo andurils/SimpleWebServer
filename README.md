@@ -6,3 +6,9 @@ https://learn.microsoft.com/zh-cn/dotnet/api/system.threading.semaphore?view=net
 ## EX
 
 https://learn.microsoft.com/zh-cn/dotnet/navigate/advanced-programming/
+
+## demo
+
+```
+http://localhost:8080/demo/buttonclick.html
+```
