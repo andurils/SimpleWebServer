@@ -10,6 +10,7 @@ namespace Anduril.WebServer.ConsoleHost
             //var prefixes = new string[] { "http://localhost:8090/" };
             //SimpleListenerExample(prefixes);
             string websitePath = GetWebsitePath();
+            Server.OnError = ErrorHandler;
             Server.Start(websitePath);
             Console.ReadLine();
         }
@@ -22,6 +23,38 @@ namespace Anduril.WebServer.ConsoleHost
             //websitePath = websitePath.LeftOfRightmostOf("\\")+ "\\Website";
 
             return websitePath;
+        }
+
+        public static string ErrorHandler(ServerError error)
+        {
+            string ret = null;
+
+            switch (error)
+            {
+                case ServerError.ExpiredSession:
+                    ret = "/ErrorPages/expiredSession.html";
+                    break;
+                case ServerError.FileNotFound:
+                    ret = "/ErrorPages/fileNotFound.html";
+                    break;
+                case ServerError.NotAuthorized:
+                    ret = "/ErrorPages/notAuthorized.html";
+                    break;
+                case ServerError.PageNotFound:
+                    ret = "/ErrorPages/pageNotFound.html";
+                    break;
+                case ServerError.ServerError:
+                    ret = "/ErrorPages/serverError.html";
+                    break;
+                case ServerError.UnknownType:
+                    ret = "/ErrorPages/unknownType.html";
+                    break;
+                case ServerError.ValidationError:
+                    ret = "/ErrorPages/validationError.html";
+                    break;
+            }
+
+            return ret;
         }
 
         // https://www.codeproject.com/Articles/859108/Writing-a-Web-Server-from-Scratch
@@ -55,7 +88,7 @@ namespace Anduril.WebServer.ConsoleHost
                 throw new ArgumentException("prefixes");
 
             // Create a listener.
-            HttpListener listener = new HttpListener();
+            var listener = new HttpListener();
             // Add the prefixes.
             foreach (string s in prefixes)
             {

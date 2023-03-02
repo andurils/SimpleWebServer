@@ -11,7 +11,10 @@ namespace Anduril.WebServer
     {
 
         private static Router router = new Router();
+
         private static HttpListener listener; // HTTP 协议侦听器
+
+        public static Func<ServerError, string> OnError { get; set; } // 错误处理
 
         public static int maxSimultaneousConnections = 20;  // 最大同时连接数
         // 使用 Semaphore 类控制对资源池的访问 限制可同时访问某一资源或资源池的线程数
@@ -109,6 +112,11 @@ namespace Anduril.WebServer
 
             resp = router.Route(verb, path, kvParams);
 
+
+            if (resp.Error != ServerError.OK)
+            {
+                resp = router.Route("get", OnError(resp.Error), null);
+            }
 
             try
             {

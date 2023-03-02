@@ -39,12 +39,21 @@ namespace Anduril.WebServer
         /// </summary>
         private ResponsePacket ImageLoader(string fullPath, string ext, ExtensionInfo extInfo)
         {
-            FileStream fStream = new FileStream(fullPath, FileMode.Open, FileAccess.Read);
-            BinaryReader br = new BinaryReader(fStream);
-            ResponsePacket ret = new ResponsePacket() { Data = br.ReadBytes((int)fStream.Length), ContentType = extInfo.ContentType };
-            br.Close();
-            fStream.Close();
+            ResponsePacket ret;
 
+            if (!File.Exists(fullPath))
+            {
+                ret = new ResponsePacket() { Error = ServerError.FileNotFound };
+                Console.WriteLine("!!! File not found: " + fullPath);
+            }
+            else
+            {
+                FileStream fStream = new FileStream(fullPath, FileMode.Open, FileAccess.Read);
+                BinaryReader br = new BinaryReader(fStream);
+                ret = new ResponsePacket() { Data = br.ReadBytes((int)fStream.Length), ContentType = extInfo.ContentType };
+                br.Close();
+                fStream.Close();
+            }
             return ret;
         }
 
@@ -54,9 +63,18 @@ namespace Anduril.WebServer
         /// </summary>
         private ResponsePacket FileLoader(string fullPath, string ext, ExtensionInfo extInfo)
         {
-            string text = File.ReadAllText(fullPath);
-            ResponsePacket ret = new ResponsePacket() { Data = Encoding.UTF8.GetBytes(text), ContentType = extInfo.ContentType, Encoding = Encoding.UTF8 };
+            ResponsePacket ret;
 
+            if (!File.Exists(fullPath))
+            {
+                ret = new ResponsePacket() { Error = ServerError.FileNotFound };
+                Console.WriteLine("!!! File not found: " + fullPath);
+            }
+            else
+            {
+                string text = File.ReadAllText(fullPath);
+                ret = new ResponsePacket() { Data = Encoding.UTF8.GetBytes(text), ContentType = extInfo.ContentType, Encoding = Encoding.UTF8 };
+            }
             return ret;
         }
 
@@ -86,7 +104,17 @@ namespace Anduril.WebServer
 
                 // Inject the "Pages" folder into the path  将“Pages”文件夹注入路径
                 fullPath = WebsitePath + "\\Pages" + fullPath.RightOf(WebsitePath);
-                ret = FileLoader(fullPath, ext, extInfo);
+
+
+                if (!File.Exists(fullPath))
+                {
+                    ret = new ResponsePacket() { Error = ServerError.PageNotFound };
+                    Console.WriteLine("!!! File not found: " + fullPath);
+                }
+                else
+                {
+                    ret = FileLoader(fullPath, ext, extInfo);
+                }
             }
 
             return ret;
@@ -107,6 +135,10 @@ namespace Anduril.WebServer
                 string fullPath = Path.Combine(WebsitePath, wpath);
                 ret = extInfo.Loader(fullPath, ext, extInfo); // Call the appropriate loader.  调用适当的加载程序。
             }
+            else
+            {
+                ret = new ResponsePacket() { Error = ServerError.UnknownType };
+            }
 
             return ret;
         }
@@ -118,6 +150,20 @@ namespace Anduril.WebServer
     //    public string Path { get; set; }
     //    public Func<Dictionary<string, string>, string> Action { get; set; }
     //}
+
+
+    public enum ServerError
+    {
+        OK, // 200
+        ExpiredSession, // 401
+        NotAuthorized, // 403
+        FileNotFound, // 404
+        PageNotFound, // 404
+        ServerError, // 500
+        UnknownType, // 500
+        ValidationError, // 422
+        AjaxError, // 500
+    }
 
     /// <summary>
     ///  A class to hold information about a response.  用于保存响应信息的类
@@ -140,6 +186,11 @@ namespace Anduril.WebServer
         ///  The encoding of the response.  响应的编码
         /// </summary>
         public Encoding Encoding { get; set; }
+
+        /// <summary>
+        ///  The error code to send back to the client.  发送给客户端的错误代码
+        /// </summary>
+        public ServerError Error { get; set; }
     }
 
     /// <summary>
