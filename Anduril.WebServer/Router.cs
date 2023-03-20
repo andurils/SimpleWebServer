@@ -6,6 +6,9 @@ using System.Threading.Tasks;
 
 namespace Anduril.WebServer
 {
+    /// <summary>
+    /// 路由配置
+    /// </summary>
     public class Router
     {
         public string WebsitePath { get; set; } // The root path of the website.  网站的根路径
@@ -16,9 +19,12 @@ namespace Anduril.WebServer
         public const string DELETE = "delete";
 
         private Dictionary<string, ExtensionInfo> extFolderMap; // Map of extensions to folders.  扩展名到文件夹的映射
+        protected List<Route> routes;
 
         public Router()
         {
+            routes = new List<Route>();
+
             extFolderMap = new Dictionary<string, ExtensionInfo>()
                                 {
                                   {".ico", new ExtensionInfo() {Loader=ImageLoader, ContentType="image/ico"}},
@@ -32,7 +38,10 @@ namespace Anduril.WebServer
                                   {"", new ExtensionInfo() {Loader=PageLoader, ContentType="text/html"}},
                                 };
         }
-
+        public void AddRoute(Route route)
+        {
+            routes.Add(route);
+        }
         /// <summary>
         /// Read in an image file and returns a ResponsePacket with the raw data. 
         /// 读取图像文件并返回一个ResponsePacket，其中包含原始数据。
@@ -128,12 +137,40 @@ namespace Anduril.WebServer
             ExtensionInfo extInfo;
             ResponsePacket ret = null;
 
+            verb = verb.ToLower();
+
             if (extFolderMap.TryGetValue(ext, out extInfo))
             {
                 // Strip off leading '/' and reformat as with windows path separator.    去掉前导“/”并重新格式化为Windows路径分隔符。 
                 string wpath = path.Substring(1).Replace('/', '\\');
                 string fullPath = Path.Combine(WebsitePath, wpath);
-                ret = extInfo.Loader(fullPath, ext, extInfo); // Call the appropriate loader.  调用适当的加载程序。
+
+                // Check for a route handler.  检查路由处理程序。  
+                Route route = routes.SingleOrDefault(r => verb == r.Verb.ToLower() && path == r.Path);
+
+                if (route != null)
+                {
+                    // Application has a handler for this route. 应用程序有一个处理程序来处理这个路由。
+                    string redirect = route.Action(kvParams);
+
+                    if (String.IsNullOrEmpty(redirect))
+                    {
+                        // Respond with default content loader. 响应默认内容加载程序。
+                        ret = extInfo.Loader(fullPath, ext, extInfo);
+                    }
+                    else
+                    {
+                        // Respond with redirect. 响应重定向。
+                        ret = new ResponsePacket() { Redirect = redirect };
+                    }
+                    // ret = extInfo.Loader(fullPath, ext, extInfo); // Call the appropriate loader.  调用适当的加载程序。
+
+                }
+                else
+                {
+                    // Attempt default behavior  尝试默认行为
+                    ret = extInfo.Loader(fullPath, ext, extInfo);
+                }
             }
             else
             {
@@ -143,69 +180,5 @@ namespace Anduril.WebServer
             return ret;
         }
     }
-
-    //public class Route
-    //{
-    //    public string Verb { get; set; }
-    //    public string Path { get; set; }
-    //    public Func<Dictionary<string, string>, string> Action { get; set; }
-    //}
-
-
-    public enum ServerError
-    {
-        OK, // 200
-        ExpiredSession, // 401
-        NotAuthorized, // 403
-        FileNotFound, // 404
-        PageNotFound, // 404
-        ServerError, // 500
-        UnknownType, // 500
-        ValidationError, // 422
-        AjaxError, // 500
-    }
-
-    /// <summary>
-    ///  A class to hold information about a response.  用于保存响应信息的类
-    /// </summary>
-    public class ResponsePacket
-    {
-        /// <summary>
-        ///  If this is not null, then the server will redirect to this URL.  如果不为空，则服务器将重定向到此URL
-        /// </summary> 
-        public string Redirect { get; set; }
-        /// <summary>
-        ///  The raw data to send back to the client.  发送给客户端的原始数据
-        /// </summary>
-        public byte[] Data { get; set; }
-        /// <summary>
-        ///  The content type of the response.  响应的内容类型
-        /// </summary>
-        public string ContentType { get; set; }
-        /// <summary>
-        ///  The encoding of the response.  响应的编码
-        /// </summary>
-        public Encoding Encoding { get; set; }
-
-        /// <summary>
-        ///  The error code to send back to the client.  发送给客户端的错误代码
-        /// </summary>
-        public ServerError Error { get; set; }
-    }
-
-    /// <summary>
-    ///  A class to hold information about a file extension.   用于保存文件扩展信息类
-    /// </summary>
-    internal class ExtensionInfo
-    {
-        /// <summary>
-        ///  The content type of the file.  文件的内容类型
-        /// </summary>
-        public string ContentType { get; set; }
-
-        /// <summary>
-        ///  The loader function to use to load the file.  用于加载文件的加载函数
-        /// </summary>
-        public Func<string, string, ExtensionInfo, ResponsePacket> Loader { get; set; }
-    }
+   
 }
