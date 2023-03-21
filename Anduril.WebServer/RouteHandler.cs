@@ -12,15 +12,15 @@ namespace Anduril.WebServer
     /// 路由处理程序的基类。
     /// </summary>
     public abstract class RouteHandler
-    {
-        protected Func<Session, Dictionary<string, object>, string> handler;
+    { 
+        protected Func<Session, Dictionary<string, object>, ResponsePacket> handler;
 
-        public RouteHandler(Func<Session, Dictionary<string, object>, string> handler)
+        public RouteHandler(Func<Session, Dictionary<string, object>, ResponsePacket> handler)
         {
             this.handler = handler;
         }
 
-        public abstract string Handle(Session session, Dictionary<string, object> parms);
+        public abstract ResponsePacket Handle(Session session, Dictionary<string, object> parms);
     }
 
     /// <summary>
@@ -28,12 +28,12 @@ namespace Anduril.WebServer
     /// </summary>
     public class AnonymousRouteHandler : RouteHandler
     {
-        public AnonymousRouteHandler(Func<Session, Dictionary<string, object>, string> handler)
+        public AnonymousRouteHandler(Func<Session, Dictionary<string, object>, ResponsePacket> handler)
             : base(handler)
         {
         }
 
-        public override string Handle(Session session, Dictionary<string, object> parms)
+        public override ResponsePacket Handle(Session session, Dictionary<string, object> parms)
         {
             return handler(session, parms);
         }
@@ -44,25 +44,26 @@ namespace Anduril.WebServer
     /// </summary>
     public class AuthenticatedRouteHandler : RouteHandler
     {
-        public AuthenticatedRouteHandler(Func<Session, Dictionary<string, object>, string> handler)
+        public AuthenticatedRouteHandler(Func<Session, Dictionary<string, object>, ResponsePacket> handler)
             : base(handler)
         {
         }
 
-        public override string Handle(Session session, Dictionary<string, object> parms)
+        public override ResponsePacket Handle(Session session, Dictionary<string, object> parms)
         {
-            string ret;
+            //string ret;
 
-            if (session.Authorized)
-            {
-                ret = handler(session, parms); // 授权状态下，执行路由处理程序
-            }
-            else
-            {
-                ret = Server.OnError(ServerError.NotAuthorized); // 未授权状态下，执行错误处理程序
-            }
+            //if (session.Authorized)
+            //{
+            //    ret = handler(session, parms); // 授权状态下，执行路由处理程序
+            //}
+            //else
+            //{
+            //    ret = Server.OnError(ServerError.NotAuthorized); // 未授权状态下，执行错误处理程序
+            //}
 
-            return ret;
+            //return ret;
+            return handler(session, parms);
         }
     }
 
@@ -72,26 +73,28 @@ namespace Anduril.WebServer
     /// </summary>
     public class AuthenticatedExpirableRouteHandler : AuthenticatedRouteHandler
     {
-        public AuthenticatedExpirableRouteHandler(Func<Session, Dictionary<string, object>, string> handler)
+        public AuthenticatedExpirableRouteHandler(Func<Session, Dictionary<string, object>, ResponsePacket> handler)
             : base(handler)
         {
         }
 
-        public override string Handle(Session session, Dictionary<string, object> parms)
+        public override ResponsePacket Handle(Session session, Dictionary<string, object> parms)
         {
-            string ret;
-            // 会话过期判断
-            if (session.IsExpired(Server.ExpirationTimeSeconds))
-            {
-                session.Authorized = false;
-                ret = Server.OnError(ServerError.ExpiredSession);
-            }
-            else
-            {
-                ret = base.Handle(session, parms);
-            }
+            //string ret;
+            //// 会话过期判断
+            //if (session.IsExpired(Server.ExpirationTimeSeconds))
+            //{
+            //    session.Authorized = false;
+            //    ret = Server.OnError(ServerError.ExpiredSession);
+            //}
+            //else
+            //{
+            //    ret = base.Handle(session, parms);
+            //}
 
-            return ret;
+            //return ret;
+            return handler(session, parms);
+
         }
     }
 }

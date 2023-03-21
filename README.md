@@ -15,7 +15,9 @@
 - <http://localhost:8080/foo>
 - <http://localhost:8080/foo.bar>
 - <http://localhost:8080/foo.png>
-- http://localhost:8080/demo/redirect.html
+- <http://localhost:8080/demo/redirect.html>
+- <http://localhost:8080/demo/ajax>
+- <http://localhost:8080/demo/ajax_get>
 
 ## refference
 

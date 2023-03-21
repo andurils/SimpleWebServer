@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Data;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
@@ -131,22 +132,38 @@ namespace Anduril.WebServer {
                 string fullPath = Path.Combine(WebsitePath, wpath);
 
                 // Check for a route handler.  检查路由处理程序。  
-                Route route = routes.SingleOrDefault(r => verb == r.Verb.ToLower() && path == r.Path);
+                //Route route = routes.SingleOrDefault(r => verb == r.Verb.ToLower() && path == r.Path);
+                Route routeHandler = routes.SingleOrDefault(r => verb == r.Verb.ToLower() && path == r.Path.ToLower());
 
-                if (route != null) {
+                if (routeHandler != null) {
                     // Application has a handler for this route. 应用程序有一个处理程序来处理这个路由。
                     // string redirect = route.Action(kvParams);
-                    string redirect = route.Handler.Handle(session, kvParams);
+                    //string redirect = route.Handler.Handle(session, kvParams);
 
-                    if (String.IsNullOrEmpty(redirect)) {
-                        // Respond with default content loader. 响应默认内容加载程序。
+                    ResponsePacket handlerResponse = null;
+                    // If a handler exists:
+                    routeHandler.Handler.IfNotNull((h) => handlerResponse = h.Handle(session, kvParams));
+
+
+
+                    //if (String.IsNullOrEmpty(redirect)) {
+                    //    // Respond with default content loader. 响应默认内容加载程序。
+                    //    ret = extInfo.Loader(fullPath, ext, extInfo);
+                    //}
+                    //else {
+                    //    // Respond with redirect. 响应重定向。
+                    //    ret = new ResponsePacket() { Redirect = redirect };
+                    //}
+                    // ret = extInfo.Loader(fullPath, ext, extInfo); // Call the appropriate loader.  调用适当的加载程序。
+
+                    if (handlerResponse == null) {
+                        // Respond with default content loader.
                         ret = extInfo.Loader(fullPath, ext, extInfo);
                     }
                     else {
-                        // Respond with redirect. 响应重定向。
-                        ret = new ResponsePacket() { Redirect = redirect };
+                        // Respond with redirect.
+                        ret = handlerResponse;
                     }
-                    // ret = extInfo.Loader(fullPath, ext, extInfo); // Call the appropriate loader.  调用适当的加载程序。
 
                 }
                 else {

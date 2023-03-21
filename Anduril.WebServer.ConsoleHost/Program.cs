@@ -1,21 +1,21 @@
 ﻿using System.Net;
 using System.Reflection;
+using System.Text;
 
-namespace Anduril.WebServer.ConsoleHost
-{
-    internal class Program
-    {
-        static void Main(string[] args)
-        {
+namespace Anduril.WebServer.ConsoleHost {
+    internal class Program {
+        public static Server server;
+
+        static void Main(string[] args) {
             //var prefixes = new string[] { "http://localhost:8090/" };
             //SimpleListenerExample(prefixes);
             string websitePath = GetWebsitePath();
-            Server.OnError = ErrorHandler;
+            server = new Server();
+            server.OnError = ErrorHandler;
 
             // Never expire, always authorize (for demo purposes)  
             // 永不过期，始终授权（用于演示目的）
-            Server.OnRequest = (session, context) =>
-            {
+            server.OnRequest = (session, context) => {
                 session.Authorized = true;
                 session.UpdateLastConnectionTime();
             };
@@ -29,8 +29,7 @@ namespace Anduril.WebServer.ConsoleHost
             //    Handler = new AnonymousRouteHandler(RedirectMe)
             //});
 
-            Server.AddRoute(new Route()
-            {
+            server.AddRoute(new Route() {
                 Verb = Router.POST,
                 Path = "/demo/redirect",
                 Handler = new AuthenticatedRouteHandler(RedirectMe)
@@ -43,17 +42,55 @@ namespace Anduril.WebServer.ConsoleHost
             //     Handler = new AuthenticatedExpirableRouteHandler(RedirectMe)
             // });
 
-            Server.Start(websitePath);
+            server.AddRoute(new Route() {
+                Verb = Router.PUT,
+                Path = "/demo/ajax",
+                Handler = new AnonymousRouteHandler(AjaxResponder)
+            });
+
+            server.AddRoute(new Route() {
+                Verb = Router.GET,
+                Path = "/demo/ajax_get",
+                Handler = new AnonymousRouteHandler(AjaxGetResponder)
+            });
+
+            server.Start(websitePath);
             Console.ReadLine();
         }
 
-        public static string RedirectMe(Session session, Dictionary<string, object> parms)
-        {
-            return "/demo/clicked";
+        // public static string RedirectMe(Session session, Dictionary<string, object> parms)
+        // {
+        //     return "/demo/clicked";
+        // }
+
+        // public static string AjaxResponder(Session session, Dictionary<string, object> parms)
+        // {
+        //     return "what???";
+        // }
+
+        public static ResponsePacket RedirectMe(Session session, Dictionary<string, object> parms) {
+            return server.Redirect("/demo/clicked");
         }
 
-        public static string GetWebsitePath()
-        {
+        public static ResponsePacket AjaxResponder(Session session, Dictionary<string, object> parms) {
+            string data = "You said " + parms["number"].ToString();
+            ResponsePacket ret = new ResponsePacket() { Data = Encoding.UTF8.GetBytes(data), ContentType = "text" };
+
+            return ret;
+        }
+
+        public static ResponsePacket AjaxGetResponder(Session session, Dictionary<string, object> parms) {
+            ResponsePacket ret = null;
+
+            if (parms.Count != 0) {
+                string data = "You said " + parms["number"].ToString();
+                ret = new ResponsePacket() { Data = Encoding.UTF8.GetBytes(data), ContentType = "text" };
+            }
+
+            return ret;
+        }
+
+        public static string GetWebsitePath() {
             // Path of our exe.
             string websitePath = Assembly.GetExecutingAssembly().Location;
             websitePath = websitePath.LeftOfRightmostOf("\\").LeftOfRightmostOf("\\").LeftOfRightmostOf("\\").LeftOfRightmostOf("\\") + "\\Website";
@@ -62,12 +99,10 @@ namespace Anduril.WebServer.ConsoleHost
             return websitePath;
         }
 
-        public static string ErrorHandler(ServerError error)
-        {
+        public static string ErrorHandler(ServerError error) {
             string ret = null;
 
-            switch (error)
-            {
+            switch (error) {
                 case ServerError.ExpiredSession:
                     ret = "/ErrorPages/expiredSession.html";
                     break;

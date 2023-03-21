@@ -7,32 +7,43 @@ namespace Anduril.WebServer
     /// <summary>
     /// A lean and mean web server. 一个精简高效的Web 服务器
     /// </summary>
-    public static class Server
+    public class Server
     {
 
-        private static Router router = new Router(); // 路由器
+        private Router router { get; set; } // 路由器 
+        private SessionManager sessionManager { get; set; } // 会话管理器 
+        public int ExpirationTimeSeconds { get; set; }
+        public string ValidationTokenName { get; set; }
+        public int MaxSimultaneousConnections { get; set; }
+        private HttpListener listener { get; set; } // HTTP 协议侦听器
+        private Semaphore sem { get; set; }
 
-        private static SessionManager sessionManager = new SessionManager(); // 会话管理器
+        public Func<ServerError, string> OnError { get; set; } // 错误处理
+        public Func<Session, string, string, string> PostProcess { get; set; }
+        public Action<Session, HttpListenerContext> OnRequest;  // 请求处理
 
-        public static int ExpirationTimeSeconds { get; set; }
-        public static string ValidationTokenName { get; set; }
-
-
-        private static HttpListener listener; // HTTP 协议侦听器
-
-        public static Func<ServerError, string> OnError { get; set; } // 错误处理
-        public static Func<Session, string, string, string> PostProcess { get; set; }
-        public static Action<Session, HttpListenerContext> OnRequest;  // 请求处理
-
-        public static int maxSimultaneousConnections = 20;  // 最大同时连接数
         // 使用 Semaphore 类控制对资源池的访问 限制可同时访问某一资源或资源池的线程数
-        private static Semaphore sem = new Semaphore(maxSimultaneousConnections, maxSimultaneousConnections);
+
+        public Server()
+        {
+            // This needs to be externally settable before initializing the semaphore.  在初始化信号量之前，需要外部设置
+            // 最大同时连接数
+            MaxSimultaneousConnections = 20;
+            ExpirationTimeSeconds = 60;      // default expires in 1 minute.
+            ValidationTokenName = "__CSRFToken__";
+
+
+            sem = new Semaphore(MaxSimultaneousConnections, MaxSimultaneousConnections);
+            router = new Router();
+            sessionManager = new SessionManager();
+            // PostProcess = DefaultPostProcess;
+        }
 
         /// <summary>
         /// Returns list of IP addresses assigned to localhost network devices, such as hardwired ethernet, wireless, etc.
         /// 返回分配给本地主机网络设备的IP地址列表，例如硬件以太网，无线等。
         /// </summary>
-        private static List<IPAddress> GetLocalHostIPs()
+        private List<IPAddress> GetLocalHostIPs()
         {
             IPHostEntry host;
             host = Dns.GetHostEntry(Dns.GetHostName());
@@ -43,7 +54,7 @@ namespace Anduril.WebServer
         /// <summary>
         ///  Initialize the listener.
         /// </summary> 
-        private static HttpListener InitializeListener(List<IPAddress> localhostIPs)
+        private HttpListener InitializeListener(List<IPAddress> localhostIPs)
         {
             HttpListener listener = new HttpListener();
             listener.Prefixes.Add("http://localhost:8080/");
@@ -61,7 +72,7 @@ namespace Anduril.WebServer
         /// Begin listening to connections on a separate worker thread. 
         /// 开始监听连接在一个单独的工作线程
         /// </summary>
-        private static void Start(HttpListener listener)
+        private void Start(HttpListener listener)
         {
             listener.Start();
             Task.Run(() => RunServer(listener));
@@ -72,7 +83,7 @@ namespace Anduril.WebServer
         /// This code runs in a separate thread.
         ///  开始等待连接，直到“maxSimultaneousConnections”值。
         /// </summary>
-        private static void RunServer(HttpListener listener)
+        private void RunServer(HttpListener listener)
         {
             while (true)
             {
@@ -85,7 +96,7 @@ namespace Anduril.WebServer
         /// <summary>
         /// Await connections.  连接监听器
         /// </summary>
-        private static async void StartConnectionListener(HttpListener listener)
+        private async void StartConnectionListener(HttpListener listener)
         {
             ResponsePacket resp = null; // Response packet. 响应包
 
@@ -161,7 +172,7 @@ namespace Anduril.WebServer
             }
         }
 
-        // private static void Respond(HttpListenerResponse response, ResponsePacket resp)
+        // private  void Respond(HttpListenerResponse response, ResponsePacket resp)
         // {
         //     response.ContentType = resp.ContentType;
         //     response.ContentLength64 = resp.Data.Length;
@@ -171,7 +182,7 @@ namespace Anduril.WebServer
         //     response.OutputStream.Close();
         // }
 
-        private static void Respond(HttpListenerRequest request, HttpListenerResponse response, ResponsePacket resp)
+        private void Respond(HttpListenerRequest request, HttpListenerResponse response, ResponsePacket resp)
         {
             if (String.IsNullOrEmpty(resp.Redirect))
             {
@@ -196,7 +207,7 @@ namespace Anduril.WebServer
         /// <summary>
         /// Starts the web server. 启动Web服务器
         /// </summary>
-        public static void Start(string websitePath)
+        public void Start(string websitePath)
         {
             router.WebsitePath = websitePath;
             List<IPAddress> localHostIPs = GetLocalHostIPs(); // 获取本地IP地址
@@ -207,7 +218,7 @@ namespace Anduril.WebServer
         /// <summary>
         /// Log requests. 记录请求
         /// </summary>
-        public static void Log(HttpListenerRequest request)
+        public void Log(HttpListenerRequest request)
         {
             Console.WriteLine(request.RemoteEndPoint + " " + request.HttpMethod + " /" + request.Url?.AbsoluteUri.RightOf('/', 3));
         }
@@ -215,7 +226,7 @@ namespace Anduril.WebServer
         /// <summary>
 		/// Log parameters.
 		/// </summary>
-		private static void Log(Dictionary<string, object> kv)
+		private void Log(Dictionary<string, object> kv)
         {
             kv.ForEach(kvp => Console.WriteLine(kvp.Key + " : " + Uri.UnescapeDataString(kvp.Value.ToString())));
         }
@@ -225,7 +236,7 @@ namespace Anduril.WebServer
         ///  分离出键值对，由&和分隔的单个键值实例，由=分隔
 		/// Ex input: username=abc&password=123
 		/// </summary>
-		private static Dictionary<string, object> GetKeyValues(string data, Dictionary<string, object> kv = null)
+		private Dictionary<string, object> GetKeyValues(string data, Dictionary<string, object> kv = null)
         {
             kv.IfNull(() => kv = new Dictionary<string, object>());
             data.If(d => d.Length > 0, (d) => d.Split('&').ForEach(keyValue => kv[keyValue.LeftOf('=')] = System.Uri.UnescapeDataString(keyValue.RightOf('='))));
@@ -233,9 +244,21 @@ namespace Anduril.WebServer
             return kv;
         }
 
-        public static void AddRoute(Route route)
+        public void AddRoute(Route route)
         {
             router.AddRoute(route);
+        }
+
+        /// <summary>
+		/// Return a ResponsePacket with the specified URL and an optional (singular) parameter.
+        /// 返回具有指定URL和可选（单个）参数的ResponsePacket。
+		/// </summary>
+		public ResponsePacket Redirect(string url, string parm = null)
+        {
+            ResponsePacket ret = new ResponsePacket() { Redirect = url };
+            parm.IfNotNull((p) => ret.Redirect += "?" + p);
+
+            return ret;
         }
     }
 }
