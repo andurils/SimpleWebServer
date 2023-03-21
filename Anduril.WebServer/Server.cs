@@ -1,20 +1,21 @@
 ﻿using System.Net;
 using System.Net.Sockets;
 using System.Reflection;
+using System.Text.RegularExpressions;
 
-namespace Anduril.WebServer
-{
+namespace Anduril.WebServer {
     /// <summary>
     /// A lean and mean web server. 一个精简高效的Web 服务器
     /// </summary>
-    public class Server
-    {
+    public class Server {
 
         private Router router { get; set; } // 路由器 
         private SessionManager sessionManager { get; set; } // 会话管理器 
         public int ExpirationTimeSeconds { get; set; }
         public string ValidationTokenName { get; set; }
         public int MaxSimultaneousConnections { get; set; }
+        public string PublicIP { get; set; }
+
         private HttpListener listener { get; set; } // HTTP 协议侦听器
         private Semaphore sem { get; set; }
 
@@ -24,8 +25,7 @@ namespace Anduril.WebServer
 
         // 使用 Semaphore 类控制对资源池的访问 限制可同时访问某一资源或资源池的线程数
 
-        public Server()
-        {
+        public Server() {
             // This needs to be externally settable before initializing the semaphore.  在初始化信号量之前，需要外部设置
             // 最大同时连接数
             MaxSimultaneousConnections = 20;
@@ -43,8 +43,7 @@ namespace Anduril.WebServer
         /// Returns list of IP addresses assigned to localhost network devices, such as hardwired ethernet, wireless, etc.
         /// 返回分配给本地主机网络设备的IP地址列表，例如硬件以太网，无线等。
         /// </summary>
-        private List<IPAddress> GetLocalHostIPs()
-        {
+        private List<IPAddress> GetLocalHostIPs() {
             IPHostEntry host;
             host = Dns.GetHostEntry(Dns.GetHostName());
             List<IPAddress> ret = host.AddressList.Where(ip => ip.AddressFamily == AddressFamily.InterNetwork).ToList();
@@ -54,8 +53,7 @@ namespace Anduril.WebServer
         /// <summary>
         ///  Initialize the listener.
         /// </summary> 
-        private HttpListener InitializeListener(List<IPAddress> localhostIPs)
-        {
+        private HttpListener InitializeListener(List<IPAddress> localhostIPs) {
             HttpListener listener = new HttpListener();
             listener.Prefixes.Add("http://localhost:8080/");
 
@@ -72,8 +70,7 @@ namespace Anduril.WebServer
         /// Begin listening to connections on a separate worker thread. 
         /// 开始监听连接在一个单独的工作线程
         /// </summary>
-        private void Start(HttpListener listener)
-        {
+        private void Start(HttpListener listener) {
             listener.Start();
             Task.Run(() => RunServer(listener));
         }
@@ -83,10 +80,8 @@ namespace Anduril.WebServer
         /// This code runs in a separate thread.
         ///  开始等待连接，直到“maxSimultaneousConnections”值。
         /// </summary>
-        private void RunServer(HttpListener listener)
-        {
-            while (true)
-            {
+        private void RunServer(HttpListener listener) {
+            while (true) {
                 // 使用 Semaphore 类控制对资源池的访问。 线程通过调用 WaitOne 从类继承 WaitHandle 的方法输入信号灯，
                 sem.WaitOne();
                 StartConnectionListener(listener);
@@ -96,8 +91,7 @@ namespace Anduril.WebServer
         /// <summary>
         /// Await connections.  连接监听器
         /// </summary>
-        private async void StartConnectionListener(HttpListener listener)
-        {
+        private async void StartConnectionListener(HttpListener listener) {
             ResponsePacket resp = null; // Response packet. 响应包
 
             // Wait for a connection. Return to caller while we wait.
@@ -127,8 +121,7 @@ namespace Anduril.WebServer
             //  Obtain a request object. 获取请求对象   
             HttpListenerRequest request = context.Request;
 
-            try
-            {
+            try {
                 string path = request.RawUrl.LeftOf("?"); // Only the path, not any of the parameters  只有路径，而不是任何参数
                 string verb = request.HttpMethod; // get, post, delete, etc.  请求谓词 
                 // Params on the URL itself follow the URL and are separated by a ? 参数在URL本身跟随URL并由?分隔
@@ -146,25 +139,21 @@ namespace Anduril.WebServer
                 session.UpdateLastConnectionTime();
 
 
-                if (resp.Error != ServerError.OK)
-                {
+                if (resp.Error != ServerError.OK) {
                     // resp = router.Route("get", OnError(resp.Error), null);
                     resp.Redirect = OnError(resp.Error);
                 }
 
-                try
-                {
+                try {
                     Respond(request, context.Response, resp);
                 }
-                catch (Exception reallyBadException)
-                {
+                catch (Exception reallyBadException) {
                     // The response failed!
                     // TODO: We need to put in some decent logging!
                     Console.WriteLine(reallyBadException.Message);
                 }
             }
-            catch (Exception ex)
-            {
+            catch (Exception ex) {
                 Console.WriteLine(ex.Message);
                 Console.WriteLine(ex.StackTrace);
                 resp = new ResponsePacket() { Redirect = OnError(ServerError.ServerError) };
@@ -182,21 +171,24 @@ namespace Anduril.WebServer
         //     response.OutputStream.Close();
         // }
 
-        private void Respond(HttpListenerRequest request, HttpListenerResponse response, ResponsePacket resp)
-        {
-            if (String.IsNullOrEmpty(resp.Redirect))
-            {
+        private void Respond(HttpListenerRequest request, HttpListenerResponse response, ResponsePacket resp) {
+            if (String.IsNullOrEmpty(resp.Redirect)) {
                 response.ContentType = resp.ContentType;
                 response.ContentLength64 = resp.Data.Length;
                 response.OutputStream.Write(resp.Data, 0, resp.Data.Length);
                 response.ContentEncoding = resp.Encoding;
                 response.StatusCode = (int)HttpStatusCode.OK;
             }
-            else
-            {
+            else {
                 response.StatusCode = (int)HttpStatusCode.Redirect;
                 //response.Redirect("http://" + request.UserHostAddress + resp.Redirect);
-                response.Redirect("http://" + request.UserHostName + resp.Redirect);
+                //response.Redirect("http://" + request.UserHostName + resp.Redirect);
+                if (String.IsNullOrEmpty(PublicIP)) {
+                    response.Redirect("http://" + request.UserHostName + resp.Redirect);
+                }
+                else {
+                    response.Redirect("http://" + PublicIP + resp.Redirect);
+                }
 
             }
 
@@ -207,8 +199,14 @@ namespace Anduril.WebServer
         /// <summary>
         /// Starts the web server. 启动Web服务器
         /// </summary>
-        public void Start(string websitePath)
-        {
+        public void Start(string websitePath, int port = 80, bool acquirePublicIP = false) {
+
+
+            if (acquirePublicIP) {
+                PublicIP = GetExternalIP();
+                Console.WriteLine("public IP: " + PublicIP);
+            }
+
             router.WebsitePath = websitePath;
             List<IPAddress> localHostIPs = GetLocalHostIPs(); // 获取本地IP地址
             HttpListener listener = InitializeListener(localHostIPs); // 初始化监听器
@@ -218,16 +216,14 @@ namespace Anduril.WebServer
         /// <summary>
         /// Log requests. 记录请求
         /// </summary>
-        public void Log(HttpListenerRequest request)
-        {
+        public void Log(HttpListenerRequest request) {
             Console.WriteLine(request.RemoteEndPoint + " " + request.HttpMethod + " /" + request.Url?.AbsoluteUri.RightOf('/', 3));
         }
 
         /// <summary>
 		/// Log parameters.
 		/// </summary>
-		private void Log(Dictionary<string, object> kv)
-        {
+		private void Log(Dictionary<string, object> kv) {
             kv.ForEach(kvp => Console.WriteLine(kvp.Key + " : " + Uri.UnescapeDataString(kvp.Value.ToString())));
         }
 
@@ -236,16 +232,14 @@ namespace Anduril.WebServer
         ///  分离出键值对，由&和分隔的单个键值实例，由=分隔
 		/// Ex input: username=abc&password=123
 		/// </summary>
-		private Dictionary<string, object> GetKeyValues(string data, Dictionary<string, object> kv = null)
-        {
+		private Dictionary<string, object> GetKeyValues(string data, Dictionary<string, object> kv = null) {
             kv.IfNull(() => kv = new Dictionary<string, object>());
             data.If(d => d.Length > 0, (d) => d.Split('&').ForEach(keyValue => kv[keyValue.LeftOf('=')] = System.Uri.UnescapeDataString(keyValue.RightOf('='))));
 
             return kv;
         }
 
-        public void AddRoute(Route route)
-        {
+        public void AddRoute(Route route) {
             router.AddRoute(route);
         }
 
@@ -253,12 +247,30 @@ namespace Anduril.WebServer
 		/// Return a ResponsePacket with the specified URL and an optional (singular) parameter.
         /// 返回具有指定URL和可选（单个）参数的ResponsePacket。
 		/// </summary>
-		public ResponsePacket Redirect(string url, string parm = null)
-        {
+		public ResponsePacket Redirect(string url, string parm = null) {
             ResponsePacket ret = new ResponsePacket() { Redirect = url };
             parm.IfNotNull((p) => ret.Redirect += "?" + p);
 
             return ret;
         }
+
+
+
+
+        private string GetExternalIP() {
+            string externalIP = "";
+            try {
+                using (WebClient client = new WebClient()) {
+                    externalIP = client.DownloadString("https://api.ipify.org");
+                    externalIP = (new Regex(@"\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}")).Matches(externalIP)[0].ToString();
+                }
+            }
+            catch (Exception e) {
+                Console.WriteLine("Error: " + e.Message);
+            }
+            return externalIP;
+        }
+
+
     }
 }

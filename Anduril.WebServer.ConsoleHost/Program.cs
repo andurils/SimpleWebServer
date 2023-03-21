@@ -11,6 +11,7 @@ namespace Anduril.WebServer.ConsoleHost {
             //SimpleListenerExample(prefixes);
             string websitePath = GetWebsitePath();
             server = new Server();
+            //server.PublicIP = "www.yourdomain.com"; // 设置域名
             server.OnError = ErrorHandler;
 
             // Never expire, always authorize (for demo purposes)  
