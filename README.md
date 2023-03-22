@@ -8,6 +8,7 @@
 - <https://learn.microsoft.com/zh-cn/dotnet/navigate/advanced-programming/>
 
 - `verbs谓词` <https://www.rfc-editor.org/rfc/rfc9110.html#name-method-definitions>
+- http://blog.stevensanderson.com/2008/09/01/prevent-cross-site-request-forgery-csrf-using-aspnet-mvcs-antiforgerytoken-helper/
 
 ## demo
 

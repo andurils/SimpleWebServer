@@ -17,6 +17,6 @@ namespace Anduril.WebServer {
         /// <summary>
         ///  The loader function to use to load the file.  用于加载文件的加载函数
         /// </summary>
-        public Func<string, string, ExtensionInfo, ResponsePacket> Loader { get; set; }
+        public Func<Session, string, string, ExtensionInfo, ResponsePacket> Loader { get; set; }
     }
 }

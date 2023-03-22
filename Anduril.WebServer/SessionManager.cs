@@ -12,6 +12,9 @@ namespace Anduril.WebServer
     /// </summary>
     public class SessionManager
     {
+        protected Server server;
+
+
         /// <summary>
         /// Track all sessions. The key is the remote endpoint IP address.
         /// zh-CN:跟踪所有会话。键是远程端点IP地址。
@@ -21,8 +24,8 @@ namespace Anduril.WebServer
         // TODO: We need a way to remove very old sessions so that the server doesn't accumulate thousands of stale endpoints. 
         // zh-CN:我们需要一种方法来删除非常旧的会话，以便服务器不会累积数千个陈旧的端点。
 
-        public SessionManager()
-        {
+        public SessionManager(Server server) {
+            this.server = server;
             sessionMap = new Dictionary<IPAddress, Session>();
         }
 
@@ -34,7 +37,16 @@ namespace Anduril.WebServer
         {
             // The port is always changing on the remote endpoint, so we can only use IP portion. 
             // zh-CN:远程端点的端口始终在变化，因此我们只能使用IP部分。
-            Session session = sessionMap.CreateOrGet(remoteEndPoint.Address);
+            //Session session = sessionMap.CreateOrGet(remoteEndPoint.Address);
+
+            Session session;
+
+            // 新会话时会创建一个令牌
+            if (!sessionMap.TryGetValue(remoteEndPoint.Address, out session)) {
+                session = new Session();
+                session.Objects[server.ValidationTokenName] = Guid.NewGuid().ToString();
+                sessionMap[remoteEndPoint.Address] = session;
+            }
 
             return session;
         }
